@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-from collections import namedtuple
 import random
-import colorama
 from unidecode import unidecode
 
 class VocItem(object):
@@ -55,11 +52,16 @@ class VocItem(object):
 
 
 class VocTrainer(object):
-	def __init__(self, vocabulary, ignore_case=True, ignore_accents=True, on_prompt=None, on_solution=None):
+	def __init__(
+		self, vocabulary,
+		on_prompt, on_input, on_solution,
+		ignore_case=True, ignore_accents=True
+	):
 		"""
 		vocabulary: [([source], [target])]
 		"""
 		
+		self.on_input = on_input
 		self.on_prompt = on_prompt
 		self.on_solution = on_solution
 		
@@ -85,30 +87,19 @@ class VocTrainer(object):
 			while i < len(items):
 				item = items[i]
 				
-				print(colorama.Fore.WHITE + colorama.Style.BRIGHT + item.get_prompt() + colorama.Style.RESET_ALL)
-				if self.on_prompt is not None:
-					self.on_prompt(item)
+				self.on_prompt(item)
 				
-				try:
-					answer = input(colorama.Fore.YELLOW + ">>> " + colorama.Style.RESET_ALL)
-				except EOFError:
-					print()
+				answer = self.on_input()
+				if answer is None:
 					return False
 				
 				correct = item.check(answer)
-				if correct:
-					print(colorama.Fore.GREEN + ("Correct! (%d/%d)" % (item.total - item.bad, item.total)) + colorama.Style.RESET_ALL)
-				else:
-					print(colorama.Fore.RED + ("Wrong! (%d/%d)" % (item.total - item.bad, item.total)) + colorama.Style.RESET_ALL)
+				if not correct:
 					pos = i + min(random.randint(3, 4), len(items))
 					items.insert(pos, item)
 					todo.append(item)
 				
-				print(item.get_solution())
-				print()
-				
-				if self.on_solution is not None:
-					self.on_solution(item, answer, correct)
+				self.on_solution(item, answer, correct)
 				
 				i += 1
 			
@@ -119,32 +110,3 @@ class VocTrainer(object):
 			random.shuffle(items)
 		
 		return True
-	
-	
-	def print_summary(self):
-		v = [ x for x in self.vocabulary if x.bad > 0 ]
-		v = sorted(v, key=lambda x: -x.bad)
-		for item in v:
-			print(
-				"%s%2d %s%s" % (
-					colorama.Fore.RED + colorama.Style.BRIGHT,
-					item.bad, colorama.Style.RESET_ALL,
-					item.solution
-				)
-			)
-		return "\n".join(( x.solution for x in v ))
-
-
-if __name__ == "__main__":
-	vocabulary = [
-		(["test"], [ "test", "test" ]),
-		(["test2"], [ "test2", "test2" ])
-	]
-	
-	trainer = VocTrainer(vocabulary)
-	while True:
-		print()
-		print(colorama.Fore.BLUE + colorama.Style.BRIGHT + "New round!" + colorama.Style.RESET_ALL)
-		print()
-		if not trainer.start_round():
-			break

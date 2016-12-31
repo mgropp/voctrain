@@ -8,6 +8,11 @@ from auth import user, password
 from voctrain import VocTrainer
 import audio
 
+# TODO:
+# (Aussprachepartikel)
+# avant (zeitlich), devant (räumlich)
+# unbestimmter Pluralartikel
+
 def get_words(skill_name, vocab_overview):
 	# skill["words"] appears to be incomplete
 	#words = []
@@ -25,19 +30,56 @@ def get_words(skill_name, vocab_overview):
 	return [ v["word_string"] for v in vocab_overview if v["skill"] == skill_name ]
 
 
+def on_input():
+	try:
+		return input(
+			colorama.Fore.YELLOW +
+			">>> " +
+			colorama.Style.RESET_ALL
+		)
+	except EOFError:
+		print()
+		return None
+
+
+def print_summary(voc_items):
+	print()
+	print(
+		colorama.Fore.BLUE + colorama.Style.BRIGHT +
+		"Summary" +
+		colorama.Style.RESET_ALL
+	)
+	
+	v = [ x for x in voc_items if x.bad > 0 ]
+	v = sorted(v, key=lambda x: -x.bad)
+	for item in v:
+		print(
+			"%s%2d %s%s" % (
+				colorama.Fore.RED + colorama.Style.BRIGHT,
+				item.bad, colorama.Style.RESET_ALL,
+				item.solution
+			)
+		)
+	return "\n".join(( x.solution for x in v ))
+
+
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--source", action="store", default="de", help="source language")
 	parser.add_argument("--target", action="store", default="fr", help="target language")
 	parser.add_argument("--t2s", action="store_true", help="translate target to source")
+	parser.add_argument("--debug", action="store_true", help="enable debug output")
 	args = parser.parse_args()
+	
+	print("You can press Ctrl+D to quit.")
+	print()
 	
 	dl = duolingo.Duolingo(user, password)
 	
 	skills = dl.get_learned_skills(args.target)
-	print(skills[0].keys())
 	skills = sorted(skills, key=lambda x: (int(x["coords_y"]), int(x["coords_x"])))
-	print(skills[12])
+	if args.debug:
+		print(skills)
 	
 	print(colorama.Fore.WHITE + colorama.Style.BRIGHT + "Choose a skill!" + colorama.Style.RESET_ALL)
 	for n, s in zip(range(1, len(skills)+1), skills):
@@ -48,7 +90,7 @@ def main():
 			skill_index = input(colorama.Fore.YELLOW + ">>> " + colorama.Style.RESET_ALL)
 		except EOFError:
 			print()
-			return False
+			return
 		
 		try:
 			skill_index = int(skill_index.strip())
@@ -59,12 +101,20 @@ def main():
 			skill = skills[skill_index - 1]
 			break
 	
-	words = get_words(skill["title"], dl.get_vocabulary(args.target)["vocab_overview"])
+	words = get_words(
+		skill["title"],
+		dl.get_vocabulary(args.target)["vocab_overview"]
+	
+	)
 	translations_t2s = dl.get_translations(
 		words,
 		source=args.source,
 		target=args.target
 	)
+	
+	if args.debug:
+		print("--- t2s ---")
+		print(translations_t2s)
 	
 	if args.t2s:
 		translations = translations_t2s
@@ -76,8 +126,9 @@ def main():
 			target=args.source
 		)
 		
-		print(translations_t2s)
-		print(translations_s2t)
+		if args.debug:
+			print("--- s2t ---")
+			print(translations_s2t)
 		
 		vocabulary = []
 		for t, ss in translations_t2s.items():
@@ -96,31 +147,45 @@ def main():
 				translation_set = translation_set.union(translations_s2t[s])
 			
 			vocabulary.append(( ss, list(translation_set), None, t, "%s -> %s" % (t, ", ".join(ss))))
-		
+	
+	if len(vocabulary) == 0:
+		print("No words found!")
+		return False
 	
 	def on_prompt(item):
+		print(
+			colorama.Fore.WHITE + colorama.Style.BRIGHT +
+			item.get_prompt() +
+			colorama.Style.RESET_ALL
+		)
 		if item.main_l1 is not None:
 			audio.play_audio(item.main_l1, dl, args.target)
 	
 	def on_solution(item, answer, correct):
+		if correct:
+			print(colorama.Fore.GREEN + ("Correct! (%d/%d)" % (item.total - item.bad, item.total)) + colorama.Style.RESET_ALL)
+		else:
+			print(colorama.Fore.RED + ("Wrong! (%d/%d)" % (item.total - item.bad, item.total)) + colorama.Style.RESET_ALL)
+		
+		print(item.get_solution())
+		print()
+			
 		if item.main_l2 is not None:
 			audio.play_audio(item.main_l2, dl, args.target)
 	
-	if len(vocabulary) == 0:
-		print("No words found!")
-	
-	else:
-		trainer = VocTrainer(vocabulary, on_prompt=on_prompt, on_solution=on_solution)
-		while True:
-			print()
-			print(colorama.Fore.BLUE + colorama.Style.BRIGHT + "New round!" + colorama.Style.RESET_ALL)
-			print()
-			if not trainer.start_round():
-				break
-		
+	trainer = VocTrainer(vocabulary, on_prompt, on_input, on_solution)
+	while True:
 		print()
-		print(colorama.Fore.BLUE + colorama.Style.BRIGHT + "Summary" + colorama.Style.RESET_ALL)
-		trainer.print_summary()
+		print(
+			colorama.Fore.BLUE + colorama.Style.BRIGHT +
+			"New round!" +
+			colorama.Style.RESET_ALL
+		)
+		print()
+		if not trainer.start_round():
+			break
+	
+	print_summary(trainer.vocabulary)
 
 
 if __name__ == "__main__":
