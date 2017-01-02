@@ -13,6 +13,25 @@ import audio
 # avant (zeitlich), devant (räumlich)
 # unbestimmter Pluralartikel
 
+def get_all_skills(dl, lang):
+	skills = [skill for skill in dl.user_data.language_data[lang]['skills']]
+	
+	dl._compute_dependency_order(skills)
+	
+	return list(sorted(skills, key=lambda skill: skill['dependency_order']))
+
+
+def get_started_skills(dl, lang):
+	skills = [skill for skill in dl.user_data.language_data[lang]['skills']]
+	
+	dl._compute_dependency_order(skills)
+	
+	return [ skill for skill in
+		sorted(skills, key=lambda skill: skill['dependency_order'])
+		if float(skill["progress_percent"]) > 0
+	]
+
+
 def get_words(skill_name, vocab_overview):
 	# skill["words"] appears to be incomplete
 	#words = []
@@ -63,27 +82,41 @@ def print_summary(voc_items):
 	return "\n".join(( x.solution for x in v ))
 
 
-def main():
-	parser = argparse.ArgumentParser()
-	parser.add_argument("--source", action="store", default="de", help="source language")
-	parser.add_argument("--target", action="store", default="fr", help="target language")
-	parser.add_argument("--t2s", action="store_true", help="translate target to source")
-	parser.add_argument("--debug", action="store_true", help="enable debug output")
-	args = parser.parse_args()
-	
+def main(args):
 	print("You can press Ctrl+D to quit.")
 	print()
 	
 	dl = duolingo.Duolingo(user, password)
 	
-	skills = dl.get_learned_skills(args.target)
+	skills = get_started_skills(dl, args.target)
 	skills = sorted(skills, key=lambda x: (int(x["coords_y"]), int(x["coords_x"])))
 	if args.debug:
 		print(skills)
 	
 	print(colorama.Fore.WHITE + colorama.Style.BRIGHT + "Choose a skill!" + colorama.Style.RESET_ALL)
 	for n, s in zip(range(1, len(skills)+1), skills):
-		print("%2s) %s (%.2f)" % (n, s["title"], s["strength"]))
+		if float(s["progress_percent"]) < 100:
+			progress = ", %s%.0f%%%s" % (
+				colorama.Fore.MAGENTA,
+				float(s["progress_percent"]),
+				colorama.Style.RESET_ALL
+			)
+		else:
+			progress = ""
+		
+		if s["strength"] == 1.0:
+			strength = "%s%.2f%s" % (colorama.Fore.GREEN, s["strength"], colorama.Style.RESET_ALL)
+		else:
+			strength = "%s%.2f%s" % (colorama.Fore.YELLOW, s["strength"], colorama.Style.RESET_ALL)
+		
+		print(
+			"%s%2s)%s %s (%s%s)" % (
+				colorama.Fore.WHITE + colorama.Style.BRIGHT,
+				n,
+				colorama.Style.RESET_ALL,
+				s["title"], strength, progress
+			)
+		)
 	
 	while True:
 		try:
@@ -106,6 +139,10 @@ def main():
 		dl.get_vocabulary(args.target)["vocab_overview"]
 	
 	)
+	if args.debug:
+		print("--- words ---")
+		print(words)
+	
 	translations_t2s = dl.get_translations(
 		words,
 		source=args.source,
@@ -148,6 +185,10 @@ def main():
 			
 			vocabulary.append(( ss, list(translation_set), None, t, "%s -> %s" % (t, ", ".join(ss))))
 	
+	if args.debug:
+		print("--- vocabulary ---")
+		print(vocabulary)
+	
 	if len(vocabulary) == 0:
 		print("No words found!")
 		return False
@@ -189,4 +230,11 @@ def main():
 
 
 if __name__ == "__main__":
-	main()
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--source", action="store", default="de", help="source language")
+	parser.add_argument("--target", action="store", default="fr", help="target language")
+	parser.add_argument("--t2s", action="store_true", help="translate target to source")
+	parser.add_argument("--debug", action="store_true", help="enable debug output")
+	args = parser.parse_args()
+
+	main(args)
