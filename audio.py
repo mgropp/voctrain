@@ -23,6 +23,10 @@ def get_audio_file(word, duolingo, language, cache=True):
 	return filename
 
 
+def play_audio_dummy(word, duolingo, language):
+	pass
+
+
 _pygame_initialized = False
 
 def play_audio_pygame(word, duolingo, language, wait=False):
@@ -45,6 +49,14 @@ def play_audio_pygame(word, duolingo, language, wait=False):
 			pygame.time.Clock().tick(10)
 
 
+def is_supported_pygame():
+	try:
+		import pygame
+		return True
+	except:
+		return False
+
+
 _pool = None
 
 def play_audio_mpg123(word, duolingo, language):
@@ -61,4 +73,17 @@ def play_audio_mpg123(word, duolingo, language):
 	_pool.submit(lambda: subprocess.run([ "mpg123", filename ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
 
 
-play_audio = play_audio_mpg123
+def is_supported_mpg123():
+	try:
+		import subprocess
+		subprocess.check_call([ "mpg123", "--help" ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		return True
+	except:
+		return False
+
+
+play_audio = play_audio_dummy
+if is_supported_mpg123():
+	play_audio = play_audio_mpg123
+elif is_supported_pygame():
+	play_audio = play_audio_pygame

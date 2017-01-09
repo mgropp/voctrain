@@ -200,7 +200,8 @@ def main(args):
 			colorama.Style.RESET_ALL
 		)
 		if item.main_l1 is not None:
-			audio.play_audio(item.main_l1, dl, args.target)
+			if not args.no_audio:
+				audio.play_audio(item.main_l1, dl, args.target)
 	
 	def on_solution(item, answer, correct):
 		if correct:
@@ -212,7 +213,8 @@ def main(args):
 		print()
 			
 		if item.main_l2 is not None:
-			audio.play_audio(item.main_l2, dl, args.target)
+			if not args.no_audio:
+				audio.play_audio(item.main_l2, dl, args.target)
 	
 	trainer = VocTrainer(vocabulary, on_prompt, on_input, on_solution)
 	while True:
@@ -235,6 +237,7 @@ if __name__ == "__main__":
 	parser.add_argument("--target", action="store", default="fr", help="target language")
 	parser.add_argument("--t2s", action="store_true", help="translate target to source")
 	parser.add_argument("--debug", action="store_true", help="enable debug output")
+	parser.add_argument("--no-audio", action="store_true", help="disable audio output")
 	args = parser.parse_args()
 
 	main(args)
