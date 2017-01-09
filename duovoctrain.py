@@ -163,6 +163,17 @@ def main(args):
 			target=args.source
 		)
 		
+		# try to avoid inconsistencies in duolingo data, e.g.:
+		# jeudis -> [Donnerstage]
+		# Donnerstage -> []
+		for s, tt in list(translations_s2t.items())[:]:
+			if len(tt) == 0:
+				# find translation in t2s data
+				tt = [ t for t, ss in translations_t2s.items() if s in ss ]
+				if len(tt) == 0:
+					raise Exception("No translation found for »%s« -- this should not happen." % s)
+				translations_s2t[s] = tt
+		
 		if args.debug:
 			print("--- s2t ---")
 			print(translations_s2t)
