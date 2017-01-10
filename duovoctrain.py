@@ -13,6 +13,51 @@ import audio
 # avant (zeitlich), devant (räumlich)
 # unbestimmter Pluralartikel
 
+def choose_skill(skills):
+	print(colorama.Fore.WHITE + colorama.Style.BRIGHT + "Choose a skill!" + colorama.Style.RESET_ALL)
+	for n, s in zip(range(1, len(skills)+1), skills):
+		if float(s["progress_percent"]) < 100:
+			progress = ", %s%.0f%%%s" % (
+				colorama.Fore.MAGENTA,
+				float(s["progress_percent"]),
+				colorama.Style.RESET_ALL
+			)
+		else:
+			progress = ""
+		
+		if s["strength"] == 1.0:
+			strength = "%s%.2f%s" % (colorama.Fore.GREEN, s["strength"], colorama.Style.RESET_ALL)
+		else:
+			strength = "%s%.2f%s" % (colorama.Fore.YELLOW, s["strength"], colorama.Style.RESET_ALL)
+		
+		print(
+			"%s%2s)%s %s (%s%s)" % (
+				colorama.Fore.WHITE + colorama.Style.BRIGHT,
+				n,
+				colorama.Style.RESET_ALL,
+				s["title"], strength, progress
+			)
+		)
+	
+	while True:
+		try:
+			skill_index = input(colorama.Fore.YELLOW + ">>> " + colorama.Style.RESET_ALL)
+		except EOFError:
+			print()
+			return None
+		
+		try:
+			skill_index = int(skill_index.strip())
+		except:
+			continue
+		
+		if 1 <= skill_index <= len(skills):
+			skill = skills[skill_index - 1]
+			break
+	
+	return skill
+
+
 def get_all_skills(dl, lang):
 	skills = [skill for skill in dl.user_data.language_data[lang]['skills']]
 	
@@ -93,46 +138,9 @@ def main(args):
 	if args.debug:
 		print(skills)
 	
-	print(colorama.Fore.WHITE + colorama.Style.BRIGHT + "Choose a skill!" + colorama.Style.RESET_ALL)
-	for n, s in zip(range(1, len(skills)+1), skills):
-		if float(s["progress_percent"]) < 100:
-			progress = ", %s%.0f%%%s" % (
-				colorama.Fore.MAGENTA,
-				float(s["progress_percent"]),
-				colorama.Style.RESET_ALL
-			)
-		else:
-			progress = ""
-		
-		if s["strength"] == 1.0:
-			strength = "%s%.2f%s" % (colorama.Fore.GREEN, s["strength"], colorama.Style.RESET_ALL)
-		else:
-			strength = "%s%.2f%s" % (colorama.Fore.YELLOW, s["strength"], colorama.Style.RESET_ALL)
-		
-		print(
-			"%s%2s)%s %s (%s%s)" % (
-				colorama.Fore.WHITE + colorama.Style.BRIGHT,
-				n,
-				colorama.Style.RESET_ALL,
-				s["title"], strength, progress
-			)
-		)
-	
-	while True:
-		try:
-			skill_index = input(colorama.Fore.YELLOW + ">>> " + colorama.Style.RESET_ALL)
-		except EOFError:
-			print()
-			return
-		
-		try:
-			skill_index = int(skill_index.strip())
-		except:
-			continue
-		
-		if 1 <= skill_index <= len(skills):
-			skill = skills[skill_index - 1]
-			break
+	skill = choose_skill(skills)
+	if skill is None:
+		return
 	
 	words = get_words(
 		skill["title"],
