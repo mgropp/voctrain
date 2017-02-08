@@ -4,6 +4,7 @@ import argparse
 from collections import namedtuple
 
 from auth import user, password
+from util import get_translations
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
@@ -28,7 +29,8 @@ if __name__ == "__main__":
 	words = sorted(words, key=lambda x: (x.strength, -x.last_practiced_ms))
 	
 	if args.translate:
-		translations = dl.get_translations(
+		translations = get_translations(
+			dl,
 			[ x.word_string for x in words ],
 			source=args.source,
 			target=args.target
