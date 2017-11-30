@@ -133,6 +133,10 @@ def main(args):
 	
 	dl = duolingo.Duolingo(user, password)
 	
+	if not args.target in dl.user_data.language_data.keys():
+		print("Error: The language {} was not found in your currently active DuoLingo courses! Use the --target argument!".format(args.target))
+		return
+	
 	skills = get_started_skills(dl, args.target)
 	skills = sorted(skills, key=lambda x: (int(x["coords_y"]), int(x["coords_x"])))
 	if args.debug:
@@ -219,7 +223,7 @@ def main(args):
 			colorama.Style.RESET_ALL
 		)
 		if item.main_l1 is not None:
-			if not args.no_audio:
+			if args.no_audio:
 				audio.play_audio(item.main_l1, dl, args.target)
 	
 	def on_solution(item, answer, correct):
